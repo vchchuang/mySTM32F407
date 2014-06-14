@@ -1,5 +1,5 @@
-EXECUTABLE=GPIO_test.elf
-BIN_IMAGE=GPIO_test.bin
+EXECUTABLE=project9_test.elf
+BIN_IMAGE=project9_test.bin
 
 CC=arm-none-eabi-gcc
 OBJCOPY=arm-none-eabi-objcopy
