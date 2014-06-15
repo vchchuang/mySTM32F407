@@ -71,7 +71,7 @@ uint8_t Buffer[6];
   
 /* Private function prototypes -----------------------------------------------*/
 static uint32_t Demo_USBConfig(void);
-static void TIM4_Config(void);
+static void TIM3_Config(void);
 static void Demo_Exec(void);
 void EXTI2_IRQHandler(void);
 void EXTI3_IRQHandler(void);
@@ -98,9 +98,10 @@ void Delay(__IO uint32_t nTime)
 int main(void)
 {
    RCC_APB2PeriphClockCmd(RCC_APB2Periph_SYSCFG , ENABLE);
-   RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD  | RCC_AHB1Periph_GPIOB | RCC_AHB1Periph_GPIOA, ENABLE );
    
-   RCC_APB1PeriphClockCmd( RCC_APB1Periph_TIM4 | RCC_APB1Periph_TIM3, ENABLE );
+   RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC  | RCC_AHB1Periph_GPIOB | RCC_AHB1Periph_GPIOA, ENABLE );
+   
+   RCC_APB1PeriphClockCmd( RCC_APB1Periph_TIM3 | RCC_APB1Periph_TIM3, ENABLE );
 
  
  
@@ -112,23 +113,50 @@ int main(void)
     GPIO_StructInit(&GPIO_InitStructure2); // Reset init structure
     GPIO_StructInit(&GPIO_InitStructure3); // Reset init structure
  
-    GPIO_PinAFConfig(GPIOD, GPIO_PinSource12, GPIO_AF_TIM4);
-    GPIO_PinAFConfig(GPIOD, GPIO_PinSource13, GPIO_AF_TIM4);
-    GPIO_PinAFConfig(GPIOD, GPIO_PinSource14, GPIO_AF_TIM4);
-    GPIO_PinAFConfig(GPIOD, GPIO_PinSource15, GPIO_AF_TIM4);
+    GPIO_PinAFConfig(GPIOC, GPIO_PinSource6, GPIO_AF_TIM3);
+    GPIO_PinAFConfig(GPIOC, GPIO_PinSource7, GPIO_AF_TIM3);
+    GPIO_PinAFConfig(GPIOC, GPIO_PinSource8, GPIO_AF_TIM3);
+    GPIO_PinAFConfig(GPIOC, GPIO_PinSource9, GPIO_AF_TIM3);
     
     //GPIO_PinAFConfig(GPIOB, GPIO_PinSource4, GPIO_AF_TIM3);
     //GPIO_PinAFConfig(GPIOB, GPIO_PinSource5, GPIO_AF_TIM3);
 
+/**
+	PWM
+		Output	PortC 6 7 8 9
+		AF TIM3				
+								**/    
     
+
+    // Setup Servo on STM32-Discovery Board to use PWM.
+    GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_6 | GPIO_Pin_7| GPIO_Pin_8| GPIO_Pin_9;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;            // Alt Function - Push Pull
+    GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
+    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+    GPIO_Init( GPIOC, &GPIO_InitStructure );  
     
-    /* GPIOA Configuration: CH1 (PB4) and CH2 (PB5) */      //output
+
+/**
+	Button
+		Output PortB 4 5
+						 **/
+
+    /* GPIOA Configuration: CH1 (PB4) and CH2 (PB5) */
     GPIO_InitStructure2.GPIO_Pin = GPIO_Pin_4 | GPIO_Pin_5 ;
-    GPIO_InitStructure2.GPIO_Mode = GPIO_Mode_OUT;            // Alt Function - Push Pull
+    GPIO_InitStructure2.GPIO_Mode = GPIO_Mode_OUT;
     GPIO_InitStructure2.GPIO_OType = GPIO_OType_PP;
     GPIO_InitStructure2.GPIO_Speed = GPIO_Speed_100MHz;
     GPIO_InitStructure2.GPIO_PuPd = GPIO_PuPd_UP;
     GPIO_Init(GPIOB, &GPIO_InitStructure2);
+
+    GPIOB->BSRRL = GPIO_Pin_4;
+    GPIOB->BSRRL = GPIO_Pin_5;
+
+/**
+	Button
+		Input PortA 2 3
+						**/
 
     /* GPIOA Configuration: (PA2) and (PA3) */     //input
     GPIO_InitStructure2.GPIO_Pin = GPIO_Pin_2 | GPIO_Pin_3 ;
@@ -138,20 +166,10 @@ int main(void)
     GPIO_InitStructure2.GPIO_PuPd = GPIO_PuPd_DOWN ;
     GPIO_Init(GPIOA, &GPIO_InitStructure2); 
     
-    
-
-    // Setup Blue & Green LED on STM32-Discovery Board to use PWM.
-    GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_12 | GPIO_Pin_13| GPIO_Pin_14| GPIO_Pin_15;
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;            // Alt Function - Push Pull
-    GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
-    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
-    GPIO_Init( GPIOD, &GPIO_InitStructure );  
-    
-    
-    GPIOB->BSRRL = GPIO_Pin_4;
-    GPIOB->BSRRL = GPIO_Pin_5;
-
+/**	
+	Button A2 A3 Interrupt
+	EXTI 2 3		
+							**/ 
 
     //清空中断标志
     EXTI_ClearITPendingBit(EXTI_Line2);
@@ -187,7 +205,7 @@ int main(void)
     NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;                                   //使能中断
     NVIC_Init(&NVIC_InitStructure);
     
-    NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);                          //选择中断分组2
+    NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);    //选择中断分组2
     NVIC_InitStructure.NVIC_IRQChannel = EXTI3_IRQn;     //选择中断通道2
     NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0; //抢占式中断优先级设置为0
     NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;        //响应式中断优先级设置为0
@@ -195,13 +213,10 @@ int main(void)
     NVIC_Init(&NVIC_InitStructure);
     
     
-    
-    
-   
-    
-    
-    
-    
+/**
+	Timer setting
+	Tim3
+					**/
     
     PrescalerValue = (uint16_t) ((SystemCoreClock /4) / 100000) - 1;
     
@@ -211,90 +226,74 @@ int main(void)
     TIM_TimeBaseStructInit( &TIM_TimeBaseInitStruct );
     TIM_TimeBaseInitStruct.TIM_ClockDivision = TIM_CKD_DIV1;
     TIM_TimeBaseInitStruct.TIM_CounterMode = TIM_CounterMode_Up;
-    TIM_TimeBaseInitStruct.TIM_Period = 2000 - 1;   // 0..2000
-    TIM_TimeBaseInitStruct.TIM_Prescaler = PrescalerValue; 
-    TIM_TimeBaseInit( TIM4, &TIM_TimeBaseInitStruct );
-    
- 
-    TIM_OCStructInit( &TIM_OCInitStruct );
-    TIM_OCInitStruct.TIM_OutputState = TIM_OutputState_Enable;
-    TIM_OCInitStruct.TIM_OCMode = TIM_OCMode_PWM1;
-    // Initial duty cycle equals 0%. Value can range from zero to 1000.
-    TIM_OCInitStruct.TIM_Pulse = 1000-1; // 0 .. 1000 (0=Always Off, 1000=Always On)
-    
-    
-    TIM_OC1Init( TIM4, &TIM_OCInitStruct ); // Channel 1  LED
-    TIM_OC2Init( TIM4, &TIM_OCInitStruct ); // Channel 2  LED
-    TIM_OC3Init( TIM4, &TIM_OCInitStruct ); // Channel 3  LED
-    TIM_OC4Init( TIM4, &TIM_OCInitStruct ); // Channel 4  LED
-    TIM_Cmd( TIM4, ENABLE );
-    
-    
-    /*
-    TIM_TimeBaseStructInit( &TIM_TimeBaseInitStruct );
-    TIM_TimeBaseInitStruct.TIM_ClockDivision = TIM_CKD_DIV1;
-    TIM_TimeBaseInitStruct.TIM_CounterMode = TIM_CounterMode_Up;
-    TIM_TimeBaseInitStruct.TIM_Period = 2000 - 1;   // 0..2000
-    TIM_TimeBaseInitStruct.TIM_Prescaler = PrescalerValue; 
+    TIM_TimeBaseInitStruct.TIM_Period = 3360 - 1;   // 0..2000
+    TIM_TimeBaseInitStruct.TIM_Prescaler = 500; 
     TIM_TimeBaseInit( TIM3, &TIM_TimeBaseInitStruct );
-    
+ /**
+		TIM_Prescaler = 500-1, TIM_Period = 1680-1 , TIMxCLK = 84MHz
+		輸出脈波週期 = (TIM_Period + 1) * (TIM_Prescaler + 1) / TIMxCLK
+		= ( 1680 - 1 +1 ) * ( 500 - 1 + 1 ) / 84000000 = 0.01s(100Hz)
+																		**/   
+
     TIM_OCStructInit( &TIM_OCInitStruct );
     TIM_OCInitStruct.TIM_OutputState = TIM_OutputState_Enable;
     TIM_OCInitStruct.TIM_OCMode = TIM_OCMode_PWM1;
     // Initial duty cycle equals 0%. Value can range from zero to 1000.
-    TIM_OCInitStruct.TIM_Pulse = 1000; // 0 .. 1000 (0=Always Off, 1000=Always On)
-    TIM_OC1Init( TIM3, &TIM_OCInitStruct ); // Channel 1  
-    TIM_OC2Init( TIM3, &TIM_OCInitStruct ); // Channel 2
+    TIM_OCInitStruct.TIM_Pulse = 3360 -1; // 0 .. 1680 (0=Always Off, 1680=Always On)
+    
+    
+    TIM_OC1Init( TIM3, &TIM_OCInitStruct ); // Channel 1  Servo
+    TIM_OC2Init( TIM3, &TIM_OCInitStruct ); // Channel 2  Servo
+    TIM_OC3Init( TIM3, &TIM_OCInitStruct ); // Channel 3 PB7 Servo L
+    TIM_OC4Init( TIM3, &TIM_OCInitStruct ); // Channel 4 PB8 Servo R
     TIM_Cmd( TIM3, ENABLE );
-    */
-    
-    TIM4->CCR1 = 500-1;
-    TIM4->CCR2 = 500-1;
-    TIM4->CCR3 = 500-1;
-    TIM4->CCR4 = 500-1;
-    
-    
-    
+
+/** 
+	Project Testing
+						**/
+
   while(1)  // Do not exit
   {
-    
-    //GPIOA->ODR &= ~( 1 << 4 ) ;    //on
-    //GPIOA->ODR &= ~( 1 << 5 ) ;    //on
-    //GPIOA->ODR |= ( 1 << 13 ) ;    //off
-    //Delay(250000);
-    //GPIOA->ODR |= ( 1 << 12);    //off
-    //GPIOA->ODR &= ~( 1 << 13 ) ;    //on
-    //Delay(250000);
-    
-    
-    //GPIOB->BSRRL = GPIO_Pin_0;
-    //Delay(1000000);
-    //Delay(1000000);
-    //Delay(1000000);
-    /*
-    GPIOB->BSRRH = GPIO_Pin_0;
-    GPIOA->BSRRL = GPIO_Pin_6;
-    Delay(250000);
-    //Delay(1000000);
-    //Delay(1000000);
-    
-    GPIOA->BSRRH = GPIO_Pin_6;
-    GPIOB->BSRRL = GPIO_Pin_1;
-    Delay(250000);
-    //Delay(1000000);
-    //Delay(1000000);
-    
-    GPIOB->BSRRH = GPIO_Pin_1;
-    GPIOA->BSRRL = GPIO_Pin_7;
-    Delay(250000);
-    //Delay(1000000);
-    //Delay(1000000);  
-    */
 
-  }
+//Test 1
+
+	if(TIM3->CCR4>0){
+		for(i=0;i<16000000;i++);
+		TIM3->CCR4 = 0;
+	}
+/*
+//Test 2
+	TIM3->CCR4 = 168;
+	for(i=0;i<16000000;i++);
+	TIM3->CCR4 = 336;
+	for(i=0;i<16000000;i++);
+	TIM3->CCR4 = 252;
+	for(i=0;i<16000000;i++);
+
+/*
+//Test 3
+
+    if (((brightness + n) >= 3000) || ((brightness + n) <= 0))
+      n = -n; // if  brightness maximum/maximum change direction
+ 
+        brightness += n;
+ 
+   	TIM3->CCR1 = brightness; // set brightness
+    TIM3->CCR2 = 1000 - brightness; // set brightness
+    TIM3->CCR3 = 3000 - brightness; // set brightness
+    TIM3->CCR4 = 3000 - brightness; // set brightness
+ 
+    for(i=0;i<10000;i++);  // delay
+    //Delay(250000);
+    //Delay(1000000);
+    //Delay(1000000);
+*/  
+   }
  
   return(0); // System will implode
-   
+/**
+	Others
+			**/
   
   if (STM_EVAL_PBGetState(BUTTON_USER) == Bit_SET)
   {
@@ -359,41 +358,74 @@ int main(void)
     Demo_Exec();
   }
 }
-
+/**
+	Button L
+			**/
 void EXTI2_IRQHandler(void)
 {
  if(EXTI_GetITStatus(EXTI_Line2) != 0)
  {
     EXTI_ClearITPendingBit(EXTI_Line2);   
     
-    if (brightness <= 1999 - 100)
-        brightness +=100;
-    TIM4->CCR1 = brightness;
-    TIM4->CCR2 = brightness;
-    TIM4->CCR3 = brightness;
-    TIM4->CCR4 = brightness;
+
+    TIM3->CCR3 = 3000;
+
     
     EXTI_ClearITPendingBit(EXTI_Line2);
     EXTI_ClearITPendingBit(EXTI_Line3);
   }
 }
-
+/**
+	Button R
+				**/
 void EXTI3_IRQHandler(void)
 {
- if(EXTI_GetITStatus(EXTI_Line3) != 0)
- {
-    EXTI_ClearITPendingBit(EXTI_Line3);
-    
-    if (brightness >= 199)
-        brightness -=100;
-    TIM4->CCR1 = brightness;
-    TIM4->CCR2 = brightness;
-    TIM4->CCR3 = brightness;
-    TIM4->CCR4 = brightness;
+/*
+int i,n;
+ while(1)  // Do not exit
+  {
+
+    if (((brightness + n) >= 3000) || ((brightness + n) <= 0))
+      n = -n; // if  brightness maximum/maximum change direction
+ 
+        brightness += n;
+ 
+    TIM3->CCR4 = 3000 - brightness; // set brightness
+ 
+    for(i=0;i<1000;i++);  // delay
+    //Delay(250000);
+    //Delay(1000000);
+    //Delay(1000000);
+  
+   }
     
     EXTI_ClearITPendingBit(EXTI_Line2);
     EXTI_ClearITPendingBit(EXTI_Line3);
+ */
+int l=0;
+ if(EXTI_GetITStatus(EXTI_Line3) != 0)
+ {
+   EXTI_ClearITPendingBit(EXTI_Line3);
+    /*
+		SG90 
+			 0 				  90				180
+				ARR>3360 20ms  	AAR>3360 20ms		ARR>3360 20ms
+				CCR>252 1.5ms  	CCR>168	 1.0ms		CCR>336 2.0ms
+																	*/
+	TIM3->CCR4 = 336; //
+	for(l=0;l<16000000;l++);
+	TIM3->CCR4 = 252;	//
+	for(l=0;l<16000000;l++);
+	TIM3->CCR4 = 168;	//
+	for(l=0;l<16000000;l++);
+	//for(l=0;l<10000;l++);
+    //TIM3->CCR4 = 2240;
+	//for(l=0;l<10000;l++);
+
+    EXTI_ClearITPendingBit(EXTI_Line2);
+    EXTI_ClearITPendingBit(EXTI_Line3);
     }
+
 }
 
 
